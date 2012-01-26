@@ -271,6 +271,50 @@ class rbtimer(object):
         return f
 
 
+#
+# --- @twice decorator ---
+#
+
+class twice(object):
+
+    def __init__(self, **kwargs):
+        #self.num = kwargs.get('signum', get_free_signal())
+        #self.target = kwargs.get('target', '')
+	pass
+
+    def __call__(self, f):
+        #uwsgi.register_signal(self.num, self.target, f)
+	def f2(*args, **kwargs):
+            f(*args, **kwargs)
+            f(*args, **kwargs)
+        return f2
+
+#
+# --- end @twice ---
+#
+
+
+#
+# --- @pin_rising decorator ---
+#
+
+class pin_rising(object):
+
+    def __init__(self, pin_number, **kwargs):
+        self.num = kwargs.get('signum', get_free_signal())
+        self.pin_number = pin_number
+        self.target = kwargs.get('target', '')
+	pass
+
+    def __call__(self, f):
+        uwsgi.register_signal(self.num, self.target, f)
+        uwsgi.add_pin_event(self.num, 1, self.pin_number)
+        return f
+
+#
+# --- end @pin_rising ---
+#
+
 class filemon(object):
 
     def __init__(self, fsobj, **kwargs):
