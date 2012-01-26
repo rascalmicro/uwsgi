@@ -44,6 +44,7 @@ extern "C" {
 #define MAX_TIMERS 64
 #define MAX_PROBES 64
 #define MAX_CRONS 64
+#define MAX_PIN_EVENTS 64 // ***************************
 
 #ifndef UWSGI_LOAD_EMBEDDED_PLUGINS
 #define UWSGI_LOAD_EMBEDDED_PLUGINS
@@ -1540,6 +1541,8 @@ struct uwsgi_server {
 
 	struct uwsgi_cron *crons;
 
+	struct uwsgi_pin_event *pin_events;  // ************
+
 	time_t respawn_delta;
 
 	char *mounts[MAX_APPS];
@@ -1629,6 +1632,7 @@ struct uwsgi_server {
 	void *probe_table_lock;
 	void *rb_timer_table_lock;
 	void *cron_table_lock;
+	void *pin_events_table_lock; // ***********************
 	void *rpc_table_lock;
         void *sa_lock;
 
@@ -1733,6 +1737,17 @@ struct uwsgi_cron {
 	struct uwsgi_cron *next;
 };
 
+// ****************************
+struct uwsgi_pin_event {
+
+	int direction;
+	int pin_number;
+
+	uint8_t sig;
+
+	struct uwsgi_pin_event *next;
+};
+
 struct uwsgi_shared {
 
 	//vga 80 x25 specific !
@@ -1792,6 +1807,10 @@ struct uwsgi_shared {
 	uint64_t load;
 	struct uwsgi_cron cron[MAX_CRONS];
 	int cron_cnt;
+
+        // ********************************
+        struct uwsgi_pin_event pin_event[MAX_PIN_EVENTS];
+        int pin_events_cnt;
 
 	time_t gateways_harakiri[MAX_GATEWAYS];
 };
@@ -2330,6 +2349,8 @@ void uwsgi_unix_signal(int, void (*)(int));
 char *uwsgi_get_exported_opt(char *);
 
 int uwsgi_signal_add_cron(uint8_t, int, int, int, int, int);
+
+int uwsgi_signal_add_pin_event(uint8_t, int, int);  //*****************************
 
 char *uwsgi_get_optname_by_index(int);
 

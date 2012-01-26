@@ -287,6 +287,29 @@ int uwsgi_signal_add_cron(uint8_t sig, int minute, int hour, int day, int month,
         return 0;
 }
 
+// ***********************************
+int uwsgi_signal_add_pin_event(uint8_t sig, int direction, int pin_number) {
+
+	uwsgi_lock(uwsgi.pin_events_table_lock);
+
+        if (ushared->pin_events_cnt < MAX_PIN_EVENTS) {
+
+                ushared->pin_event[ushared->pin_events_cnt].sig = sig;
+                ushared->pin_event[ushared->pin_events_cnt].direction = direction;
+                ushared->pin_event[ushared->pin_events_cnt].pin_number = pin_number;
+                ushared->pin_events_cnt++;
+        }
+        else {
+                uwsgi_log("you can register max %d cron !!!\n", MAX_PIN_EVENTS);
+                uwsgi_unlock(uwsgi.pin_events_table_lock);
+                return -1;
+        }
+
+        uwsgi_unlock(uwsgi.pin_events_table_lock);
+
+        return 0;
+}
+
 int uwsgi_signal_add_rb_timer(uint8_t sig, int secs, int iterations) {
 
         uwsgi_lock(uwsgi.rb_timer_table_lock);

@@ -2050,6 +2050,10 @@ int uwsgi_start(void *v_argv) {
 		// cron table lock
 		uwsgi.cron_table_lock = uwsgi_mmap_shared_lock();
 		uwsgi_lock_init(uwsgi.cron_table_lock);
+
+		// pin events table lock
+		uwsgi.pin_events_table_lock = uwsgi_mmap_shared_lock();
+		uwsgi_lock_init(uwsgi.pin_events_table_lock);
 	}
 
 
