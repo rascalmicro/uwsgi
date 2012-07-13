@@ -2050,6 +2050,11 @@ int uwsgi_start(void *v_argv) {
 
 		// cron table lock
 		uwsgi.cron_table_lock = uwsgi_lock_init("cron");
+
+		// ------------------- rascal interrupts ---------------------
+		// pin events table lock
+		uwsgi.pin_events_table_lock = uwsgi_lock_init("pin_events");
+
 	}
 
 	uwsgi.rpc_table_lock = uwsgi_lock_init("rpc");

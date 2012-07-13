@@ -210,6 +210,24 @@ PyObject *py_uwsgi_add_cron(PyObject * self, PyObject * args) {
 	return Py_True;
 }
 
+// ------------------------- rascal interrupts ----------------------------
+PyObject *py_uwsgi_add_pin_event(PyObject * self, PyObject * args) {
+
+	uint8_t uwsgi_signal;
+	int direction_is_rising, pin_number;
+
+	if (!PyArg_ParseTuple(args, "Bii:add_pin_event", &uwsgi_signal, &direction_is_rising, &pin_number)) {
+                return NULL;
+        }
+
+	if (uwsgi_signal_add_pin_event(uwsgi_signal, direction_is_rising, pin_number)) {
+		return PyErr_Format(PyExc_ValueError, "unable to add pin event");
+	}
+
+	Py_INCREF(Py_True);
+	return Py_True;
+}
+// ---------------------- END - rascal interrupts -------------------------
 
 PyObject *py_uwsgi_add_probe(PyObject * self, PyObject * args) {
 
@@ -3064,6 +3082,7 @@ static PyMethodDef uwsgi_advanced_methods[] = {
 	{"add_probe", py_uwsgi_add_probe, METH_VARARGS, ""},
 	{"add_rb_timer", py_uwsgi_add_rb_timer, METH_VARARGS, ""},
 	{"add_cron", py_uwsgi_add_cron, METH_VARARGS, ""},
+	{"add_pin_event", py_uwsgi_add_pin_event, METH_VARARGS, ""},  // --------------- rascal interrupts ----------------
 
 	{"register_rpc", py_uwsgi_register_rpc, METH_VARARGS, ""},
 	{"rpc", py_uwsgi_rpc, METH_VARARGS, ""},

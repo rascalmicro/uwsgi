@@ -60,6 +60,7 @@ extern "C" {
 #define MAX_TIMERS 64
 #define MAX_PROBES 64
 #define MAX_CRONS 64
+#define MAX_PIN_EVENTS 64 // ----------- rascal interrupts ----------
 
 #ifndef UWSGI_LOAD_EMBEDDED_PLUGINS
 #define UWSGI_LOAD_EMBEDDED_PLUGINS
@@ -291,6 +292,7 @@ extern int pivot_root(const char *new_root, const char *put_old);
 
 #define uwsgi_cache_update_start(x, y, z) uwsgi_cache_set(x, y, "", 0, CACHE_FLAG_UNGETTABLE)
 
+#include "gpio-event-drv.h"  // ------------- rascal interrupts --------------
 
 struct uwsgi_string_list {
 
@@ -1530,6 +1532,8 @@ struct uwsgi_server {
 
 	struct uwsgi_cron *crons;
 
+	struct uwsgi_pin_event *pin_events; // -------------- rascal interrupts --------------
+
 	time_t respawn_delta;
 
 	char *mounts[MAX_APPS];
@@ -1630,6 +1634,7 @@ struct uwsgi_server {
 	struct uwsgi_lock_item *probe_table_lock;
 	struct uwsgi_lock_item *rb_timer_table_lock;
 	struct uwsgi_lock_item *cron_table_lock;
+	struct uwsgi_lock_item *pin_events_table_lock;  // ----------- rascal interrupts ------------
 	struct uwsgi_lock_item *rpc_table_lock;
         struct uwsgi_lock_item *sa_lock;
 
@@ -1747,6 +1752,14 @@ struct uwsgi_cron {
 	struct uwsgi_cron *next;
 };
 
+// ------------------- rascal interrupts ---------------------
+struct uwsgi_pin_event {
+	char dir;
+	int pin_number;
+	uint8_t sig;
+};
+// ---------------- END - rascal interrupts ------------------
+
 struct uwsgi_shared {
 
 	//vga 80 x25 specific !
@@ -1806,6 +1819,12 @@ struct uwsgi_shared {
 	uint64_t load;
 	struct uwsgi_cron cron[MAX_CRONS];
 	int cron_cnt;
+
+	// ------------------- rascal interrupts ---------------------
+        int b_gpio_driver_loaded;
+        struct uwsgi_pin_event pin_event[MAX_PIN_EVENTS];
+        int pin_events_cnt;
+	// ---------------- END - rascal interrupts ------------------
 
 	// gateways
 	struct uwsgi_gateway gateways[MAX_GATEWAYS];
@@ -2343,6 +2362,14 @@ void uwsgi_unix_signal(int, void (*)(int));
 char *uwsgi_get_exported_opt(char *);
 
 int uwsgi_signal_add_cron(uint8_t, int, int, int, int, int);
+
+// ------------------- rascal interrupts ---------------------
+
+int uwsgi_signal_add_pin_event(uint8_t, int, int);
+
+void dbg_print_pin_events_table(void);
+
+// ---------------- END - rascal interrupts ------------------
 
 char *uwsgi_get_optname_by_index(int);
 

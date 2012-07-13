@@ -271,6 +271,44 @@ class rbtimer(object):
         return f
 
 
+# ------------------- rascal interrupts ---------------------
+
+#
+# --- @pin_rising / @pin_falling decorators ---
+#
+
+class pin_rising(object):
+
+    def __init__(self, pin_number, **kwargs):
+        self.num = kwargs.get('signum', get_free_signal())
+        self.pin_number = pin_number
+        self.target = kwargs.get('target', '')
+	pass
+
+    def __call__(self, f):
+        uwsgi.register_signal(self.num, self.target, f)
+        uwsgi.add_pin_event(self.num, 1, self.pin_number)
+        return f
+
+class pin_falling(object):
+
+    def __init__(self, pin_number, **kwargs):
+        self.num = kwargs.get('signum', get_free_signal())
+        self.pin_number = pin_number
+        self.target = kwargs.get('target', '')
+	pass
+
+    def __call__(self, f):
+        uwsgi.register_signal(self.num, self.target, f)
+        uwsgi.add_pin_event(self.num, 0, self.pin_number)
+        return f
+
+#
+# --- END -- @pin_rising / @pin_falling decorators ---
+#
+
+# ---------------- END - rascal interrupts ----------------
+
 class filemon(object):
 
     def __init__(self, fsobj, **kwargs):

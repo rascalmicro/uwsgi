@@ -318,6 +318,47 @@ int uwsgi_signal_add_cron(uint8_t sig, int minute, int hour, int day, int month,
         return 0;
 }
 
+// --------------- rascal interrupts ----------------------
+
+int uwsgi_signal_add_pin_event(uint8_t sig, int direction_is_rising, int pin_number) {
+
+	char dir = (direction_is_rising?'R':'F');
+
+	uwsgi_lock(uwsgi.pin_events_table_lock);
+
+        if (ushared->pin_events_cnt < MAX_PIN_EVENTS) {
+                ushared->pin_event[ushared->pin_events_cnt].sig = sig;
+                ushared->pin_event[ushared->pin_events_cnt].dir = dir;
+                ushared->pin_event[ushared->pin_events_cnt].pin_number = pin_number;
+                ushared->pin_events_cnt++;
+                //uwsgi_log(">>>>> uwsgi_signal_add_pin_event:  added sig # %d, dir=%c, pin_number=%d\n", sig, dir, pin_number);
+        }
+        else {
+                uwsgi_log("you can register max %d pin event !!!\n", MAX_PIN_EVENTS);
+                uwsgi_unlock(uwsgi.pin_events_table_lock);
+                return -1;
+        }
+
+        uwsgi_unlock(uwsgi.pin_events_table_lock);
+
+        return 0;
+}
+
+void dbg_print_pin_events_table(void) {
+	int i;
+	uwsgi_lock(uwsgi.pin_events_table_lock);
+	uwsgi_log(">>>>> pin events table:  %d entries\n", ushared->pin_events_cnt);
+	for (i=0; i<ushared->pin_events_cnt; ++i) {
+		uwsgi_log(">>>>> pin events table:    sig # %d, dir=%c, pin_number=%d\n", 
+			ushared->pin_event[i].sig, 
+			ushared->pin_event[i].dir, 
+			ushared->pin_event[i].pin_number );
+	}
+	uwsgi_unlock(uwsgi.pin_events_table_lock);
+}
+
+// --------------- END - rascal interrupts ----------------------
+
 int uwsgi_signal_add_rb_timer(uint8_t sig, int secs, int iterations) {
 
 	if (!uwsgi.master_process) return -1;

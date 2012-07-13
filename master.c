@@ -110,6 +110,107 @@ void *logger_thread_loop(void *noarg) {
 	return NULL;
 }
 
+// ------------------- rascal interrupts ---------------------
+
+//
+// Waits for a pin event from kernel driver.  Returns pin number and direction.
+//
+
+int wait_pin_event(int* p_pin, char* p_dir, FILE* fs) {
+    char s[256];
+    char* ret;
+    int n;
+    long double ts;
+
+    ret = fgets(s,sizeof(s),fs);
+    if (ret!=NULL)
+    {
+        // each fgets will normally be for example:  "70 R 1340370779.533478\n"
+        if (s[strlen(s)-1]=='\n') s[strlen(s)-1] = '\0';
+        n = sscanf(s,"%d %c %Lf", p_pin, p_dir, &ts);
+        //uwsgi_log( ">>> fgets() read '%s' ==> %d variables (pin=%d, direction=%c, ts=%Lf)\n", s, n, *p_pin, *p_dir, ts);
+        return 1;
+    } else {
+        //uwsgi_log( "Error:  fgets() failed\n" );
+        return 0;
+    }
+}
+
+void *gpio_event_thread_loop(void *noarg) {
+        int i;
+        uint8_t sig;
+        int bFound;
+	FILE* fs;
+        GPIO_EventMonitor_t     monitor;
+        int b_gpio_driver_loaded;
+
+        if (( fs = fopen( "/dev/gpio-event", "r" )) == NULL )
+        {
+            b_gpio_driver_loaded = 0;
+            uwsgi_log( "Experimental interrupt support disabled because /dev/gpio-event is absent\n" );
+
+        } else {
+            monitor.gpio = 70; // Arduino 3 = GPIO 70
+            monitor.onOff = 1;
+            monitor.edgeType = GPIO_EventBothEdges;
+            monitor.debounceMilliSec = 0;
+
+            if ( ioctl( fileno( fs ), GPIO_EVENT_IOCTL_MONITOR_GPIO, &monitor ) != 0 )
+            {
+                uwsgi_log( "Warning:  ioctl GPIO_EVENT_IOCTL_MONITOR_GPIO failed\n" );
+                b_gpio_driver_loaded = 0;
+            } else {
+                b_gpio_driver_loaded = 1;
+            }
+        }
+
+        if (!b_gpio_driver_loaded) {
+                return NULL;
+        }
+
+        for(;;) {
+            int pin;
+            char dir;
+
+            //dbg_print_pin_events_table();
+
+            // Do a blocking read for the next pin event from kernel
+            if (wait_pin_event(&pin,&dir,fs))
+            {
+                uwsgi_lock(uwsgi.pin_events_table_lock);
+                //uwsgi_log( "GOT PIN EVENT >>> pin %d %s edge\n", pin, (dir=='R' ? "rising" : "falling") );
+
+                 // Look up this pin/direction combination in the table
+                 bFound = 0;
+                 for (i=0; i<ushared->pin_events_cnt; ++i) {
+                    if ((ushared->pin_event[i].pin_number == pin) && 
+                        (ushared->pin_event[i].dir == dir)) 
+                    {
+                        sig = ushared->pin_event[i].sig;
+                        //uwsgi_log("Found match in table for pin=%d, direction=%c ==> firing signal # %d\n", pin, dir, sig);
+
+                        // raise sig
+                        uwsgi_route_signal(sig);
+                        bFound = 1;
+                        break;
+                    }
+                }
+                if (!bFound) {
+                        //uwsgi_log("No match found in table for pin=%d, direction=%c ==> no signal fired\n", pin, dir);
+                }
+
+                uwsgi_unlock(uwsgi.pin_events_table_lock);
+            }
+        }
+
+        // TODO:  this never gets called right now b/c thread never exits!
+        fclose( fs );
+
+        return NULL;
+}
+
+// ------------------- END - rascal interrupts ---------------------
+
 void *cache_sweeper_loop(void *noarg) {
 
 	int i;
@@ -314,6 +415,10 @@ int master_loop(char **argv, char **environ) {
 	pthread_t logger_thread;
 	pthread_t cache_sweeper;
 
+	// ------------------- rascal interrupts ---------------------
+	pthread_t gpio_event_thread;
+	// ---------------- END - rascal interrupts ------------------
+
 #ifdef UWSGI_UDP
 	struct sockaddr_in udp_client;
 	socklen_t udp_len;
@@ -407,6 +512,14 @@ int master_loop(char **argv, char **environ) {
 			}
 		}
 	}
+
+	// ------------------- rascal interrupts ---------------------
+	if (pthread_create(&gpio_event_thread, NULL, gpio_event_thread_loop, NULL)) {
+	    uwsgi_error("pthread_create()");
+	} else {
+	    //fprintf(stdout, "gpio_event_thread created\n");
+	}
+	// ---------------- END - rascal interrupts ------------------
 
 	if (uwsgi.cache_max_items > 0 && !uwsgi.cache_no_expire) {
 		if (pthread_create(&cache_sweeper, NULL, cache_sweeper_loop, NULL)) {
